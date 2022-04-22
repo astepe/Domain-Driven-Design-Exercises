@@ -1,7 +1,8 @@
-from chapter_1.service import allocate
+from chapter_1.service import allocate, OutOfStock
 from datetime import date, timedelta
 import uuid
 from chapter_1.model import Batch, OrderLine
+import pytest
 
 
 def create_orderline_and_batch(sku, line_quantity, batch_quantity):
@@ -75,3 +76,11 @@ def test_prefer_earlier_batches():
     assert early_batch.available_quantity == 90
     assert medium_batch.available_quantity == 100
     assert late_batch.available_quantity == 100
+
+
+def test_raises_out_of_stock_exception_if_cannot_allocate():
+    batch = Batch("today", "T-Shirt", 10, eta=date.today())
+    allocate(OrderLine(str(uuid.uuid4()), "T-Shirt", 10), [batch])
+
+    with pytest.raises(OutOfStock):
+        allocate(OrderLine(str(uuid.uuid4()), "T-Shirt", 1), [batch])
