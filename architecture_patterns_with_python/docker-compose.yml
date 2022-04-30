@@ -1,30 +1,28 @@
-version: '3.7'
-
+version: "3"
 services:
+
   app:
     build:
-      context: $PWD
-      dockerfile: $PWD/Dockerfile
-    command: gunicorn --bind 0.0.0.0:5000 wsgi:app
-    ports:
-      - 5000:5000
-    env_file:
-      - $PWD/.env
+      context: .
+      dockerfile: Dockerfile
     depends_on:
-      - mood-db
-    networks: 
-      - default
-  db:
-    image: postgres:13-alpine
+      - postgres
+    environment:
+      - DB_HOST=postgres
+      - DB_PASSWORD=abc123
+      - API_HOST=app
+      - PYTHONDONTWRITEBYTECODE=1
     volumes:
-      - postgres_volume:/var/lib/postgresql/data
+      - ./src:/src
+      - ./tests:/tests
     ports:
-      - 5432:5432
-    networks:
-      - default
-    env_file:
-      - $PWD/.env
+      - "5005:80"
 
 
-volumes:
-  postgres_volume:
+  postgres:
+    image: postgres:9.6
+    environment:
+      - POSTGRES_USER=allocation
+      - POSTGRES_PASSWORD=abc123
+    ports:
+      - "54321:5432"

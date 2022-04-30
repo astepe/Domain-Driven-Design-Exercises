@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Session
-import model
+import architecture_patterns_with_python.src.allocation.domain.model as model
 
 
 class Repository:

@@ -9,7 +9,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import mapper, relationship
 
-import model
+from ..src.allocation.domain import model
 
 metadata = MetaData()
 

@@ -1,16 +1,15 @@
-FROM python:3.9-slim
+FROM python:3.9-slim-buster
 
-RUN apt-get update && apt-get install -y netcat gcc libpq-dev postgresql-client
+# RUN apt install gcc libpq (no longer needed bc we use psycopg2-binary)
 
-ENV PYTHONDONTWRITEBYTECODE 1
-ENV PYTHONUNBUFFERED 1
+COPY requirements.txt /tmp/
+RUN pip install -r /tmp/requirements.txt
 
-WORKDIR /usr/src/app
+RUN mkdir -p /src
+COPY src/ /src/
+RUN pip install -e /src
+COPY tests/ /tests/
 
-COPY ./requirements.txt /usr/src/app/requirements.txt
-
-RUN pip install --upgrade pip && pip install -r requirements.txt
-
-COPY . /usr/src/app
-
-ENTRYPOINT ["/usr/src/app/app/entrypoint.sh"]
+WORKDIR /src
+ENV FLASK_APP=allocation/entrypoints/flask_app.py FLASK_DEBUG=1 PYTHONUNBUFFERED=1
+CMD flask run --host=0.0.0.0 --port=80
