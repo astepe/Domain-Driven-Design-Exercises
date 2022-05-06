@@ -1,11 +1,14 @@
-from datetime import date, timedelta
 import uuid
+from datetime import date, timedelta
+
 import pytest
-import model
-from model import allocate, OutOfStock
+from allocation.domain import model
+from allocation.service_layer import services
 
 
-def create_orderline_and_batch(sku, line_quantity, batch_quantity):
+def create_orderline_and_batch(
+    sku: str, line_quantity: int, batch_quantity: int
+) -> tuple[model.OrderLine, model.Batch]:
     return model.OrderLine(str(uuid.uuid4()), sku, line_quantity), model.Batch(
         "instock", sku, batch_quantity
     )
@@ -60,7 +63,7 @@ def test_prefer_in_stock_batch_to_shipment_batch():
 
     orderline = model.OrderLine(str(uuid.uuid4()), "T-Shirt", 10)
 
-    allocate(orderline, [in_stock_batch, shipment_batch])
+    model.allocate(orderline, [in_stock_batch, shipment_batch])
 
     assert in_stock_batch.available_quantity == 90
     assert shipment_batch.available_quantity == 100
@@ -77,7 +80,7 @@ def test_prefer_earlier_batches():
 
     orderline = model.OrderLine(str(uuid.uuid4()), "T-Shirt", 10)
 
-    allocate(orderline, [medium_batch, late_batch, early_batch])
+    model.allocate(orderline, [medium_batch, late_batch, early_batch])
 
     assert early_batch.available_quantity == 90
     assert medium_batch.available_quantity == 100
@@ -86,7 +89,7 @@ def test_prefer_earlier_batches():
 
 def test_raises_out_of_stock_exception_if_cannot_allocate():
     batch = model.Batch("today", "T-Shirt", 10, eta=date.today())
-    allocate(model.OrderLine(str(uuid.uuid4()), "T-Shirt", 10), [batch])
+    model.allocate(model.OrderLine(str(uuid.uuid4()), "T-Shirt", 10), [batch])
 
-    with pytest.raises(OutOfStock):
-        allocate(model.OrderLine(str(uuid.uuid4()), "T-Shirt", 1), [batch])
+    with pytest.raises(model.OutOfStock):
+        model.allocate(model.OrderLine(str(uuid.uuid4()), "T-Shirt", 1), [batch])

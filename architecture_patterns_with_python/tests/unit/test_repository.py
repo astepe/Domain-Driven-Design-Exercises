@@ -1,51 +1,52 @@
 from datetime import date
 from uuid import uuid4
-import model
-from repository import Repository
+
+from allocation.adapters.repository import BatchRepository
+from allocation.domain import model
 
 
-def test_repository_can_save_a_batch(session):
+def test_repository_can_save_a_batch(in_memory_session):
     batch_reference = str(uuid4())
     batch = model.Batch(batch_reference, "RED-SHIRT", 100)
 
-    repository = Repository(session)
+    repository = BatchRepository(in_memory_session)
     repository.add(batch)
-    session.commit()
+    in_memory_session.commit()
 
-    assert session.query(model.Batch).all() == [
+    assert in_memory_session.query(model.Batch).all() == [
         model.Batch(batch_reference, "RED-SHIRT", 100, None)
     ]
 
 
-def test_repository_can_retrieve_a_batch_with_allocations(session):
-    session.execute(
+def test_repository_can_retrieve_a_batch_with_allocations(in_memory_session):
+    in_memory_session.execute(
         'INSERT INTO orderlines (orderid, sku, qty)'
         ' VALUES ("order1", "RED-SHIRT", 5)'
     )
 
-    [[orderline_id]] = session.execute(
+    [[orderline_id]] = in_memory_session.execute(
         'SELECT id FROM orderlines WHERE orderid=:orderid AND sku=:sku',
         dict(orderid="order1", sku="RED-SHIRT")
     )
     
-    session.execute(
+    in_memory_session.execute(
         'INSERT INTO batches (reference, sku, qty, eta)'
         'VALUES ("batch1", "RED-SHIRT", 10, :eta)',
         dict(eta=date.today())
     )
 
-    [[batch_id]] = session.execute(
+    [[batch_id]] = in_memory_session.execute(
         'SELECT id FROM batches WHERE reference=:reference AND sku=:sku',
         dict(reference="batch1", sku="RED-SHIRT")
     )
 
-    session.execute(
+    in_memory_session.execute(
         'INSERT INTO allocations (batch_id, orderline_id)'
         'VALUES (:batch_id, :orderline_id)',
         dict(batch_id=batch_id, orderline_id=orderline_id)
     )
 
-    repository = Repository(session)
+    repository = BatchRepository(in_memory_session)
     retrieved = repository.get("batch1")
 
     expected = model.Batch("batch1", "RED-SHIRT", 10, eta=date.today())

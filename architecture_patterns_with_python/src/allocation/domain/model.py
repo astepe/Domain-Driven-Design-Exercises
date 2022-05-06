@@ -1,6 +1,15 @@
-from typing import Optional
 from dataclasses import dataclass, field
 from datetime import date
+from typing import Optional
+
+
+class OutOfStock(Exception):
+    def __init__(self, sku: str):
+        self._message = f"no stock found for sku {sku}"
+
+    @property
+    def message(self):
+        return self._message
 
 
 @dataclass(unsafe_hash=True)
@@ -10,7 +19,7 @@ class OrderLine:
     qty: int
 
 
-@dataclass
+@dataclass(unsafe_hash=True)
 class Batch:
     reference: str
     sku: str
@@ -50,5 +59,17 @@ class Batch:
         return self.qty - self.allocated_qty
 
 
-class OutOfStock(Exception):
-    pass
+def allocate(orderline: OrderLine, batches: list[Batch]):
+    try:
+        earliest_batch = next(
+            batch
+            for batch in sorted(
+                batches,
+                key=lambda batch: batch.eta if batch.eta is not None else date.today(),
+            )
+            if batch.can_allocate(orderline)
+        )
+        earliest_batch.allocate(orderline)
+        return earliest_batch.reference
+    except StopIteration as error:
+        raise OutOfStock(sku=orderline.sku) from error

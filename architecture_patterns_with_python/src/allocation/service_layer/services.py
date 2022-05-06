@@ -1,23 +1,23 @@
 from __future__ import annotations
-from typing import Optional
-from datetime import date
+
+from allocation.adapters import repository
 
 from allocation.domain import model
-from allocation.domain.model import OrderLine
-from allocation.adapters.repository import AbstractRepository
 
 
-def allocate(orderline: OrderLine, batches: list[model.Batch]):
-    try:
-        earliest_batch = next(
-            batch
-            for batch in sorted(
-                batches,
-                key=lambda batch: batch.eta if batch.eta is not None else date.today(),
-            )
-            if batch.can_allocate(orderline)
-        )
-        earliest_batch.allocate(orderline)
-        return earliest_batch.reference
-    except StopIteration as error:
-        raise model.OutOfStock from error
+class InvalidSku(Exception):
+    def __init__(self, sku: str):
+        self._message = f"Invalid sku {sku}"
+
+    @property
+    def message(self):
+        return self._message
+
+
+def allocate(orderline: model.OrderLine, repo: repository.BatchRepository, session):
+    batches = repo.list()
+    if orderline.sku not in {batch.sku for batch in batches}:
+        raise InvalidSku(orderline.sku)
+    batchref = model.allocate(orderline, batches)
+    session.commit()
+    return batchref
