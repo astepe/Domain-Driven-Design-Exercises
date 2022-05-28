@@ -3,7 +3,6 @@ from datetime import date, timedelta
 
 import pytest
 from allocation.domain import model
-from allocation.service_layer import services
 
 
 def create_orderline_and_batch(
@@ -12,6 +11,14 @@ def create_orderline_and_batch(
     return model.OrderLine(str(uuid.uuid4()), sku, line_quantity), model.Batch(
         "instock", sku, batch_quantity
     )
+
+
+def test_orderline_deallocation_increases_batch_available_quantity():
+    orderline, batch = create_orderline_and_batch("T-Shirt", 3, 5)
+    batch.allocate(orderline)
+    assert batch.available_quantity == 2
+    batch.deallocate(orderline)
+    assert batch.available_quantity == 5
 
 
 def test_orderline_allocation_reduces_batch_available_quantity():
@@ -30,20 +37,11 @@ def test_cannot_allocate_orderline_if_available_quantity_less_than_orderline_qua
     assert batch.can_allocate(orderline) is False
 
 
-def test_cannot_allocate_orderline_if_skus_no_not_match():
+def test_cannot_allocate_orderline_if_skus_dont_match():
     orderline, batch = model.OrderLine(str(uuid.uuid4()), "sku1", 2), model.Batch(
         "instock", "sku2", 3
     )
     assert batch.can_allocate(orderline) is False
-
-
-def test_orderline_deallocation_increases_batch_up_to_original_qty():
-    orderline, batch = model.OrderLine(str(uuid.uuid4()), "sku1", 2), model.Batch(
-        "instock", "sku1", 6
-    )
-    batch.allocate(orderline)
-    batch.deallocate(orderline)
-    assert batch.available_quantity == 6
 
 
 def test_orderline_allocation_is_idempotent():

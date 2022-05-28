@@ -1,4 +1,6 @@
 from __future__ import annotations
+from datetime import date
+from typing import Optional
 
 from allocation.adapters import repository
 
@@ -14,10 +16,27 @@ class InvalidSku(Exception):
         return self._message
 
 
-def allocate(orderline: model.OrderLine, repo: repository.BatchRepository, session):
+def allocate(
+    orderid: str, sku: str, qty: str, repo: repository.AbstractRepository, session
+):
     batches = repo.list()
+    orderline = model.OrderLine(orderid=orderid, sku=sku, qty=qty)
     if orderline.sku not in {batch.sku for batch in batches}:
         raise InvalidSku(orderline.sku)
     batchref = model.allocate(orderline, batches)
     session.commit()
     return batchref
+
+
+def add_batch(
+    reference: str,
+    sku: str,
+    qty: str,
+    eta: Optional[date],
+    repo: repository.AbstractRepository,
+    session,
+):
+    batch = model.Batch(reference=reference, sku=sku, qty=qty, eta=eta)
+    repo.add(batch)
+    session.commit()
+    return batch.reference

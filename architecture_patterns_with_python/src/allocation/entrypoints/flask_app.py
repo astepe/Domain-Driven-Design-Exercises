@@ -17,10 +17,18 @@ def allocate():
     session = get_session()
     repo = BatchRepository(session)
 
-    orderline = model.OrderLine(**request.json)
-    batchref = services.allocate(orderline, repo, session)
+    batchref = services.allocate(**request.json, repo=repo, session=session)
 
-    session.commit()
+    return {"batchref": batchref}, 201
+
+
+@app.route("/add_batch", methods=["POST"])
+def add_batch():
+    session = get_session()
+    repo = BatchRepository(session)
+
+    batchref = services.add_batch(**request.json, repo=repo, session=session)
+
     return {"batchref": batchref}, 201
 
 

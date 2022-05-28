@@ -4,10 +4,43 @@ from pathlib import Path
 import pytest
 import requests
 from allocation import config
-from allocation.adapters import orm
+from allocation.adapters import orm, repository
 from sqlalchemy import create_engine
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import clear_mappers, sessionmaker
+
+from allocation.domain import model
+
+
+class FakeRepository(repository.BatchRepository):
+    def __init__(self, batches: list[model.Batch]):
+        self._batches = {batch.reference: batch for batch in batches}
+
+    def add(self, batch: model.Batch):
+        self._batches[batch.reference] = batch
+
+    def get(self, reference) -> model.Batch:
+        return self._batches.get(reference, None)
+
+    def list(self) -> list[model.Batch]:
+        return list(self._batches.values())
+
+
+class FakeSession:
+    committed = False
+
+    def commit(self):
+        self.committed = True
+
+
+@pytest.fixture(name="fake_repository")
+def fake_repository_fixture():
+    return FakeRepository([])
+
+
+@pytest.fixture(name="fake_session")
+def fake_session_fixture():
+    return FakeSession()
 
 
 def wait_for_webapp_to_come_up():

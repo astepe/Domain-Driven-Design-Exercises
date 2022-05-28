@@ -28,7 +28,7 @@ def test_repository_can_retrieve_a_batch_with_allocations(in_memory_session):
         'SELECT id FROM orderlines WHERE orderid=:orderid AND sku=:sku',
         dict(orderid="order1", sku="RED-SHIRT")
     )
-    
+
     in_memory_session.execute(
         'INSERT INTO batches (reference, sku, qty, eta)'
         'VALUES ("batch1", "RED-SHIRT", 10, :eta)',
