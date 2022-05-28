@@ -5,6 +5,7 @@ from typing import Optional
 from allocation.adapters import repository
 
 from allocation.domain import model
+from allocation.service_layer import unit_of_work
 
 
 class InvalidSku(Exception):
@@ -17,14 +18,16 @@ class InvalidSku(Exception):
 
 
 def allocate(
-    orderid: str, sku: str, qty: str, repo: repository.AbstractRepository, session
+    orderid: str, sku: str, qty: str, unit_of_work: unit_of_work.AbstractUnitOfWork,
 ):
-    batches = repo.list()
-    orderline = model.OrderLine(orderid=orderid, sku=sku, qty=qty)
-    if orderline.sku not in {batch.sku for batch in batches}:
-        raise InvalidSku(orderline.sku)
-    batchref = model.allocate(orderline, batches)
-    session.commit()
+    with unit_of_work:
+        batches = unit_of_work.batches.list()
+        orderline = model.OrderLine(orderid=orderid, sku=sku, qty=qty)
+        if orderline.sku not in {batch.sku for batch in batches}:
+            raise InvalidSku(orderline.sku)
+        batchref = model.allocate(orderline, batches)
+        unit_of_work.commit()
+
     return batchref
 
 
@@ -33,10 +36,9 @@ def add_batch(
     sku: str,
     qty: str,
     eta: Optional[date],
-    repo: repository.AbstractRepository,
-    session,
+    unit_of_work: unit_of_work.AbstractUnitOfWork,
 ):
-    batch = model.Batch(reference=reference, sku=sku, qty=qty, eta=eta)
-    repo.add(batch)
-    session.commit()
-    return batch.reference
+    with unit_of_work:
+        batch = model.Batch(reference=reference, sku=sku, qty=qty, eta=eta)
+        unit_of_work.batches.add(batch)
+        unit_of_work.commit()

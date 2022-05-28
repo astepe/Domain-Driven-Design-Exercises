@@ -26,9 +26,10 @@ def add_batch(batch: dict):
         f"{url}/add_batch",
         json=batch,
     )
-    assert response.status_code == 201
+    assert response.status_code == 201, response.text
 
 
+@pytest.mark.usefixtures("postgres_engine")
 @pytest.mark.usefixtures("restart_api")
 def test_api_returns_allocation():
     sku1, sku2 = random_sku(), random_sku()
@@ -47,10 +48,11 @@ def test_api_returns_allocation():
     )
     request_data = {"orderid": random_id(), "sku": sku1, "qty": 50}
     response = requests.post(f"{url}/allocate", json=request_data)
-    assert response.status_code == 201
+    assert response.status_code == 201, response.text
     assert response.json()["batchref"] == earlybatch
 
 
+@pytest.mark.usefixtures("postgres_engine")
 @pytest.mark.usefixtures("restart_api")
 def test_api_persists_batches():
     sku = random_sku()
@@ -77,6 +79,7 @@ def test_api_persists_batches():
     assert response.json()["batchref"] == laterbatch
 
 
+@pytest.mark.usefixtures("postgres_engine")
 @pytest.mark.usefixtures("restart_api")
 def test_400_message_for_out_of_stock():
     sku = random_sku()
@@ -94,6 +97,7 @@ def test_400_message_for_out_of_stock():
     assert response.json()["error"] == model.OutOfStock(sku=sku).message
 
 
+@pytest.mark.usefixtures("postgres_engine")
 @pytest.mark.usefixtures("restart_api")
 def test_400_message_for_invalid_sku():
     unknown_sku = random_sku()

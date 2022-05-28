@@ -1,35 +1,28 @@
-from allocation import config
 from allocation.adapters import orm
-from allocation.adapters.repository import BatchRepository
-from allocation.service_layer import services
+from allocation.service_layer import services, unit_of_work
 from allocation.domain import model
 from flask import Flask, request
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
 
 orm.start_mappers()
-get_session = sessionmaker(bind=create_engine(config.get_postgres_uri()))
 app = Flask(__name__)
 
 
 @app.route("/allocate", methods=["POST"])
 def allocate():
-    session = get_session()
-    repo = BatchRepository(session)
-
-    batchref = services.allocate(**request.json, repo=repo, session=session)
+    batchref = services.allocate(
+        **request.json, unit_of_work=unit_of_work.SqlAlchemyUnitOfWork()
+    )
 
     return {"batchref": batchref}, 201
 
 
 @app.route("/add_batch", methods=["POST"])
 def add_batch():
-    session = get_session()
-    repo = BatchRepository(session)
+    services.add_batch(
+        **request.json, unit_of_work=unit_of_work.SqlAlchemyUnitOfWork()
+    )
 
-    batchref = services.add_batch(**request.json, repo=repo, session=session)
-
-    return {"batchref": batchref}, 201
+    return {}, 201
 
 
 @app.errorhandler(model.OutOfStock)

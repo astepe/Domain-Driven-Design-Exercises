@@ -4,43 +4,10 @@ from pathlib import Path
 import pytest
 import requests
 from allocation import config
-from allocation.adapters import orm, repository
+from allocation.adapters import orm
 from sqlalchemy import create_engine
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import clear_mappers, sessionmaker
-
-from allocation.domain import model
-
-
-class FakeRepository(repository.BatchRepository):
-    def __init__(self, batches: list[model.Batch]):
-        self._batches = {batch.reference: batch for batch in batches}
-
-    def add(self, batch: model.Batch):
-        self._batches[batch.reference] = batch
-
-    def get(self, reference) -> model.Batch:
-        return self._batches.get(reference, None)
-
-    def list(self) -> list[model.Batch]:
-        return list(self._batches.values())
-
-
-class FakeSession:
-    committed = False
-
-    def commit(self):
-        self.committed = True
-
-
-@pytest.fixture(name="fake_repository")
-def fake_repository_fixture():
-    return FakeRepository([])
-
-
-@pytest.fixture(name="fake_session")
-def fake_session_fixture():
-    return FakeSession()
 
 
 def wait_for_webapp_to_come_up():
@@ -72,6 +39,13 @@ def in_memory_session_fixture(in_memory_engine):
     clear_mappers()
 
 
+@pytest.fixture(name="session_factory")
+def session_factory_fixture(in_memory_engine):
+    orm.start_mappers()
+    yield sessionmaker(bind=in_memory_engine)
+    clear_mappers()
+
+
 @pytest.fixture(name="in_memory_engine")
 def in_memory_engine_fixture():
     engine = create_engine("sqlite:///:memory:")
@@ -92,48 +66,6 @@ def postgres_engine_fixture():
     wait_for_postgres_to_come_up(engine)
     orm.metadata.create_all(engine)
     return engine
-
-
-@pytest.fixture(name="add_stock")
-def add_stock_fixture():
-
-    batches_added = set()
-    skus_added = set()
-    db_session = None
-    def add_stock(session, batches):
-        nonlocal db_session
-        db_session = session
-        for reference, sku, qty, eta in batches:
-            session.execute(
-                'INSERT INTO batches (reference, sku, qty, eta)'
-                ' VALUES (:reference, :sku, :qty, :eta)',
-                dict(reference=reference, sku=sku, qty=qty, eta=eta)
-            )
-            [[batch_id]] = session.execute(
-                'SELECT id FROM batches WHERE reference=:reference AND sku=:sku',
-                dict(reference=reference, sku=sku)
-            )
-            batches_added.add(batch_id)
-            skus_added.add(sku)
-        session.commit()
-
-    yield add_stock
-
-    for batch_id in batches_added:
-        db_session.execute(
-            'DELETE FROM allocations WHERE batch_id=:batch_id',
-            dict(batch_id=batch_id)
-        )
-        db_session.execute(
-            'DELETE FROM batches WHERE id=:batch_id',
-            dict(batch_id=batch_id)
-        )
-    for sku in skus_added:
-        db_session.execute(
-            'DELETE FROM orderlines WHERE sku=:sku',
-            dict(sku=sku)
-        )
-    db_session.commit()
 
 
 @pytest.fixture(name="restart_api")

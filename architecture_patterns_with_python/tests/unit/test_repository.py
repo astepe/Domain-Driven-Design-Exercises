@@ -1,7 +1,7 @@
 from datetime import date
 from uuid import uuid4
 
-from allocation.adapters.repository import BatchRepository
+from allocation.adapters.repository import SqlAlchemyRepository
 from allocation.domain import model
 
 
@@ -9,7 +9,7 @@ def test_repository_can_save_a_batch(in_memory_session):
     batch_reference = str(uuid4())
     batch = model.Batch(batch_reference, "RED-SHIRT", 100)
 
-    repository = BatchRepository(in_memory_session)
+    repository = SqlAlchemyRepository(in_memory_session)
     repository.add(batch)
     in_memory_session.commit()
 
@@ -46,7 +46,7 @@ def test_repository_can_retrieve_a_batch_with_allocations(in_memory_session):
         dict(batch_id=batch_id, orderline_id=orderline_id)
     )
 
-    repository = BatchRepository(in_memory_session)
+    repository = SqlAlchemyRepository(in_memory_session)
     retrieved = repository.get("batch1")
 
     expected = model.Batch("batch1", "RED-SHIRT", 10, eta=date.today())

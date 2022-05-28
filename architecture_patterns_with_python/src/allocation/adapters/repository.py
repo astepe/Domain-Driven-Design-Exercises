@@ -14,7 +14,7 @@ class AbstractRepository(abc.ABC):
         pass
 
 
-class BatchRepository:
+class SqlAlchemyRepository:
     def __init__(self, session: Session):
         self._session = session
 
